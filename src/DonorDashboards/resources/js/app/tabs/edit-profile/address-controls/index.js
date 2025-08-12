@@ -75,9 +75,9 @@ const AddressControls = ({
             <Divider />
             <AddressFields address={primaryAddress} onChange={(value) => setPrimaryAddress(value)} />
             {additionalAddressControls}
-            <Button onClick={() => addAdditionalAddress({})} icon="plus">
+           {/* <Button onClick={() => addAdditionalAddress({})} icon="plus">
                 {__('Add Address', 'give')}
-            </Button>
+            </Button>*/}
         </Fragment>
     ) : (
         <div className="give-donor-dashboard__add-primary-address">

@@ -66,9 +66,9 @@ const EmailControls = ({primaryEmail, additionalEmails, onChangePrimaryEmail, on
                 icon="envelope"
             />
             {additionalEmailControls}
-            <Button onClick={() => addAdditionalEmail('')} icon="plus">
+           {/* <Button onClick={() => addAdditionalEmail('')} icon="plus">
                 {__('Add Email', 'give')}
-            </Button>
+            </Button>*/}
         </Fragment>
     );
 };

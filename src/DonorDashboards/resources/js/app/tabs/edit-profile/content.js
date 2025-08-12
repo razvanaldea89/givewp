@@ -160,15 +160,18 @@ const Content = () => {
                     label={__('First Name', 'give')}
                     value={firstName}
                     onChange={(value) => setFirstName(value)}
+                    placeholder="Ion"
                     icon="user"
                 />
                 <TextControl
                     label={__('Last Name', 'give')}
                     value={lastName}
                     onChange={(value) => setLastName(value)}
+                    placeholder="Popescu"
                 />
             </FieldRow>
-            <TextControl label={__('Company', 'give')} value={company} onChange={(value) => setCompany(value)} />
+           {/*Company is not used in the current implementation, but can be uncommented if needed.*/}
+            {/*<TextControl label={__('Company', 'give')} value={company} onChange={(value) => setCompany(value)} />*/}
             <EmailControls
                 primaryEmail={primaryEmail}
                 additionalEmails={additionalEmails}
@@ -181,35 +184,22 @@ const Content = () => {
                 onChangePrimaryAddress={(value) => setPrimaryAddress(value)}
                 onChangeAdditionalAddresses={(value) => setAdditionalAddresses(value)}
             />
-            <Heading>{__('Additional Info', 'give')}</Heading>
-            <Divider />
-            <RadioControl
-                label={__('Anonymous Giving', 'give')}
-                description={__(
-                    'This will prevent your avatar, first name, donation comments, and other information from appearing publicly on this organization’s website.',
-                    'give'
-                )}
-                options={anonymousOptions}
-                onChange={(value) => setIsAnonymous(value)}
-                value={isAnonymous}
-            />
             <Button onClick={() => handleUpdate()}>
                 {updated ? (
                     <Fragment>
                         {__('Updated', 'give')} <FontAwesomeIcon icon="check" fixedWidth />
                     </Fragment>
                 ) : (
-                    <Fragment>
-                        {__('Update Profile', 'give')}{' '}
-                        <FontAwesomeIcon
-                            className={isUpdating ? 'give-donor-dashboard__edit-profile-spinner' : ''}
-                            icon={isUpdating ? 'spinner' : 'save'}
-                            fixedWidth
-                        />
-                    </Fragment>
-                )}
+                     <Fragment>
+                         {__('Update Profile', 'give')}{' '}
+                         <FontAwesomeIcon
+                             className={isUpdating ? 'give-donor-dashboard__edit-profile-spinner' : ''}
+                             icon={isUpdating ? 'spinner' : 'save'}
+                             fixedWidth
+                         />
+                     </Fragment>
+                 )}
             </Button>
-
             <Heading>{__('Update Password', 'give')}</Heading>
             <Divider />
             <TextControl

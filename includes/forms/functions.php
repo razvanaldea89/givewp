@@ -1115,6 +1115,15 @@ function _give_get_prefill_form_field_values( $form_id ) {
 
 			// Zipcode
 			'card_zip'        => $donor_address['zip'],
+
+            // Persoana.
+            'persoana' > $donor_address['persoana'],
+
+            // CUI
+            'cui' => $donor_address['cui'],
+
+            // J
+            'j' => $donor_address['j'],
 		];
 	endif;
 

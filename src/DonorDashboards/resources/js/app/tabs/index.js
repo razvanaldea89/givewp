@@ -7,9 +7,11 @@ import {registerRecurringDonationsTab} from './recurring-donations';
 import {getWindowData} from '../utils';
 
 export const registerDefaultTabs = () => {
+
     // Dashboard Tab should always register
     registerDashboardTab();
-
+    // Make sure that Edit Profile tab is registered first
+    registerEditProfileTab();
     const tabRegistrationMap = {
         'donation-history': registerDonationHistoryTab,
         'annual-receipts': registerAnnualReceiptsTab,
@@ -23,7 +25,4 @@ export const registerDefaultTabs = () => {
             tabRegistrationMap[tab]();
         }
     });
-
-    // Make sure that Edit Profile tab is registered last
-    registerEditProfileTab();
 };

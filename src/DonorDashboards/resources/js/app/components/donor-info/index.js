@@ -50,6 +50,7 @@ const DonorInfo = () => {
                 )}
             </div>
             <div className="give-donor-dashboard-donor-info__badges"></div>
+            <div><p>Bine ai venit, <span className="give-donor-dashboard-donor-info__greeting">{name ? name : __(' donator', 'give')}</span>!</p></div>
         </div>
     );
 };

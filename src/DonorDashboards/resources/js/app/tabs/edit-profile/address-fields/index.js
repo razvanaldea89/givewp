@@ -17,6 +17,9 @@ const AddressFields = ({address, onChange}) => {
         setCity(address.city);
         setState(address.state);
         setZip(address.zip);
+        setPersoana(address.persoana);
+        setCui(address.cui);
+        setJ(address.j);
     }, [address]);
 
     const dispatch = useDispatch();
@@ -29,6 +32,9 @@ const AddressFields = ({address, onChange}) => {
     const [city, setCity] = useState(address.city);
     const [state, setState] = useState(address.state);
     const [zip, setZip] = useState(address.zip);
+    const [persoana, setPersoana] = useState(address.persoana);
+    const [cui, setCui] = useState(address.cui);
+    const [j, setJ] = useState(address.j);
 
     const updateStates = async (countryCode) => {
         if (countryCode) {
@@ -49,9 +55,18 @@ const AddressFields = ({address, onChange}) => {
             state,
             city,
             zip,
+            persoana,
+            cui,
+            j,
         };
         onChange(newAddress);
-    }, [country, line1, line2, state, city, zip]);
+    }, [country, line1, line2, state, city, zip, persoana, cui, j]);
+
+    const personaOptions = [
+        { value: '', label: __('Selectează tipul de persoană', 'give') },
+        { value: 'persoana_fizica', label: __('Persoană Fizică', 'give') },
+        { value: 'persoana_juridica', label: __('Persoană Juridică', 'give') },
+    ];
 
     return (
         <Fragment>
@@ -65,6 +80,15 @@ const AddressFields = ({address, onChange}) => {
             <TextControl label={__('Address 1', 'give')} value={line1} onChange={(value) => setLine1(value)} />
             <TextControl label={__('Address 2', 'give')} value={line2} onChange={(value) => setLine2(value)} />
             <TextControl label={__('City', 'give')} value={city} onChange={(value) => setCity(value)} />
+            <SelectControl
+                label={__('Tip persoana', 'give')}
+                value={persoana}
+                onChange={(value) => setPersoana(value)}
+                options={personaOptions}
+                width={null}
+            />
+            <TextControl label={__('CUI', 'give')} value={cui} onChange={(value) => setCui(value)} />
+            <TextControl label={__('J', 'give')} value={j} onChange={(value) => setJ(value)} />
             <FieldRow>
                 <SelectControl
                     label={__('State', 'give')}

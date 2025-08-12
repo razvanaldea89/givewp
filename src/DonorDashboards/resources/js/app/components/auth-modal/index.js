@@ -174,11 +174,12 @@ const AuthModal = () => {
                                         {__('Log in below to access your dashboard', 'give')}
                                     </div>
                                     <form className="give-donor-dashboard__auth-modal-form" onSubmit={(e) => handleLogin(e)}>
-                                        <TextControl icon="user" value={login} onChange={(value) => setLogin(value)} />
+                                        <TextControl icon="user" value={login} placeholder="Utilizator" onChange={(value) => setLogin(value)} />
                                         <TextControl
                                             icon="lock"
                                             type="password"
                                             value={password}
+                                            placeholder="Parolă"
                                             onChange={(value) => setPassword(value)}
                                         />
                                         <div className="give-donor-dashboard__auth-modal-row">
@@ -190,12 +191,15 @@ const AuthModal = () => {
                                                     fixedWidth
                                                 />
                                             </Button>
-                                            <Button type="button" onClick={() => setShowPasswordReset(true)}>{__('Forgot Password?', 'give')}</Button>
+                                            <Button type="button"
+                                                    onClick={() => setShowPasswordReset(true)}>{__('Forgot Password?', 'give')}</Button>
                                             {loginError && (
-                                                <div className="give-donor-dashboard__auth-modal-error">{loginError}</div>
+                                                <div
+                                                    className="give-donor-dashboard__auth-modal-error">{loginError}</div>
                                             )}
                                         </div>
                                     </form>
+                                    <a href="/inregistrare" className="">Inregistrează-te</a>
                                 </>
                             )}
                             {passwordResetSent && (

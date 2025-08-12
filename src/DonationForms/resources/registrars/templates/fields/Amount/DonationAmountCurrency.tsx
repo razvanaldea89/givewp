@@ -38,7 +38,6 @@ export default function DonationAmountCurrency({currencySettings, onCurrencyAmou
     ) : (
         <span className="givewp-fields-amount__currency-container">
             <span>{currency}</span>
-            <span>{currencySymbol}</span>
         </span>
     );
 }

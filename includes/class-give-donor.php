@@ -113,17 +113,6 @@ class Give_Donor {
 	 * @var    int
 	 */
 	public $user_id;
-
-	/**
-	 * Donor notes saved by admins.
-	 *
-	 * @since  1.0
-	 * @access public
-	 *
-	 * @var    array
-	 */
-	protected $notes = null;
-
 	/**
 	 * Donor address.
 	 *
@@ -133,7 +122,15 @@ class Give_Donor {
 	 * @var    array
 	 */
 	public $address = [];
-
+	/**
+	 * Donor notes saved by admins.
+	 *
+	 * @since  1.0
+	 * @access public
+	 *
+	 * @var    array
+	 */
+	protected $notes = null;
 	/**
 	 * The Database Abstraction
 	 *
@@ -236,6 +233,21 @@ class Give_Donor {
 
 	}
 
+	/**
+	 * Retrieve a meta field for a donor.
+	 *
+	 * @since  1.6
+	 * @access public
+	 *
+	 * @param  string $meta_key The meta key to retrieve. Default is empty.
+	 * @param  bool   $single   Whether to return a single value. Default is true.
+	 *
+	 * @return mixed            Will be an array if $single is false. Will be value of meta data field if $single is
+	 *                          true.
+	 */
+	public function get_meta( $meta_key = '', $single = true ) {
+		return Give()->donor_meta->get_meta( $this->id, $meta_key, $single );
+	}
 
 	/**
 	 * Setup donor address.
@@ -280,7 +292,6 @@ class Give_Donor {
 			}
 		}
 	}
-
 
 	/**
 	 * Get addresses from meta cache
@@ -331,6 +342,9 @@ class Give_Donor {
 			'state'   => '',
 			'country' => '',
 			'zip'     => '',
+            'persoana' => '',
+            'cui'  => '',
+            'j' => '',
 		];
 
 		// Backward compatibility.
@@ -452,56 +466,66 @@ class Give_Donor {
 	}
 
 	/**
-	 * Updates a donor record.
+	 * Sanitize the data for update/create
 	 *
 	 * @since  1.0
-	 * @access public
+	 * @access private
 	 *
-	 * @param  array $data Array of data attributes for a donor (checked via whitelist).
+	 * @param  array $data The data to sanitize.
 	 *
-	 * @return bool        If the update was successful or not.
+	 * @return array       The sanitized data, based off column defaults.
 	 */
-	public function update( $data = [] ) {
+	private function sanitize_columns( $data ) {
 
-		if ( empty( $data ) ) {
-			return false;
+		$columns        = $this->db->get_columns();
+		$default_values = $this->db->get_column_defaults();
+
+		foreach ( $columns as $key => $type ) {
+
+			// Only sanitize data that we were provided
+			if ( ! array_key_exists( $key, $data ) ) {
+				continue;
+			}
+
+			switch ( $type ) {
+
+				case '%s':
+					if ( 'email' == $key ) {
+						$data[ $key ] = sanitize_email( $data[ $key ] );
+					} elseif ( 'notes' == $key ) {
+						$data[ $key ] = strip_tags( $data[ $key ] );
+					} else {
+						$data[ $key ] = sanitize_text_field( $data[ $key ] );
+					}
+					break;
+
+				case '%d':
+					if ( ! is_numeric( $data[ $key ] ) || (int) $data[ $key ] !== absint( $data[ $key ] ) ) {
+						$data[ $key ] = $default_values[ $key ];
+					} else {
+						$data[ $key ] = absint( $data[ $key ] );
+					}
+					break;
+
+				case '%f':
+					// Convert what was given to a float
+					$value = floatval( $data[ $key ] );
+
+					if ( ! is_float( $value ) ) {
+						$data[ $key ] = $default_values[ $key ];
+					} else {
+						$data[ $key ] = $value;
+					}
+					break;
+
+				default:
+					$data[ $key ] = sanitize_text_field( $data[ $key ] );
+					break;
+
+			}
 		}
 
-		$data = $this->sanitize_columns( $data );
-
-		/**
-		 * Fires before updating donors.
-		 *
-		 * @since 1.0
-		 *
-		 * @param int   $donor_id Donor id.
-		 * @param array $data     Donor attributes.
-		 */
-		do_action( 'give_donor_pre_update', $this->id, $data );
-
-		$updated = false;
-
-		if ( $this->db->update( $this->id, $data ) ) {
-
-			$donor = $this->db->get_donor_by( 'id', $this->id );
-
-			$this->setup_donor( $donor );
-
-			$updated = true;
-		}
-
-		/**
-		 * Fires after updating donors.
-		 *
-		 * @since 1.0
-		 *
-		 * @param bool  $updated  If the update was successful or not.
-		 * @param int   $donor_id Donor id.
-		 * @param array $data     Donor attributes.
-		 */
-		do_action( 'give_donor_post_update', $updated, $this->id, $data );
-
-		return $updated;
+		return $data;
 	}
 
 	/**
@@ -581,6 +605,148 @@ class Give_Donor {
 		do_action( 'give_donor_post_attach_payment', $payment_added, $payment_id, $this->id );
 
 		return $payment_added;
+	}
+
+	/**
+	 * Updates a donor record.
+	 *
+	 * @since  1.0
+	 * @access public
+	 *
+	 * @param  array $data Array of data attributes for a donor (checked via whitelist).
+	 *
+	 * @return bool        If the update was successful or not.
+	 */
+	public function update( $data = [] ) {
+
+		if ( empty( $data ) ) {
+			return false;
+		}
+
+		$data = $this->sanitize_columns( $data );
+
+		/**
+		 * Fires before updating donors.
+		 *
+		 * @since 1.0
+		 *
+		 * @param int   $donor_id Donor id.
+		 * @param array $data     Donor attributes.
+		 */
+		do_action( 'give_donor_pre_update', $this->id, $data );
+
+		$updated = false;
+
+		if ( $this->db->update( $this->id, $data ) ) {
+
+			$donor = $this->db->get_donor_by( 'id', $this->id );
+
+			$this->setup_donor( $donor );
+
+			$updated = true;
+		}
+
+		/**
+		 * Fires after updating donors.
+		 *
+		 * @since 1.0
+		 *
+		 * @param bool  $updated  If the update was successful or not.
+		 * @param int   $donor_id Donor id.
+		 * @param array $data     Donor attributes.
+		 */
+		do_action( 'give_donor_post_update', $updated, $this->id, $data );
+
+		return $updated;
+	}
+
+	/**
+	 * Increase the donor's lifetime value.
+	 *
+	 * @since  1.0
+	 * @access public
+	 *
+	 * @param  float $value The value to increase by.
+	 *
+	 * @return mixed        If successful, the new value, otherwise false.
+	 */
+	public function increase_value( $value = 0.00 ) {
+
+		$new_value = floatval( $this->purchase_value ) + $value;
+
+		/**
+		 * Fires before increasing donor lifetime value.
+		 *
+		 * @since 1.0
+		 *
+		 * @param float $value    The value to increase by.
+		 * @param int   $donor_id Customer id.
+		 */
+		do_action( 'give_donor_pre_increase_value', $value, $this->id );
+
+		if ( $this->update( [ 'purchase_value' => $new_value ] ) ) {
+			$this->purchase_value = $new_value;
+		}
+
+		/**
+		 * Fires after increasing donor lifetime value.
+		 *
+		 * @since 1.0
+		 *
+		 * @param float $purchase_value Donor's lifetime value.
+		 * @param float $value          The value increased by.
+		 * @param int   $donor_id       Donor id.
+		 */
+		do_action( 'give_donor_post_increase_value', $this->purchase_value, $value, $this->id );
+
+		return $this->purchase_value;
+	}
+
+	/**
+	 * Increase the donation count of a donor.
+	 *
+	 * @since  1.0
+	 * @access public
+	 *
+	 * @param  int $count The number to increase by.
+	 *
+	 * @return int        The donation count.
+	 */
+	public function increase_purchase_count( $count = 1 ) {
+
+		// Make sure it's numeric and not negative.
+		if ( ! is_numeric( $count ) || $count != absint( $count ) ) {
+			return false;
+		}
+
+		$new_total = (int) $this->purchase_count + (int) $count;
+
+		/**
+		 * Fires before increasing the donor's donation count.
+		 *
+		 * @since 1.0
+		 *
+		 * @param int $count    The number to increase by.
+		 * @param int $donor_id Donor id.
+		 */
+		do_action( 'give_donor_pre_increase_donation_count', $count, $this->id );
+
+		if ( $this->update( [ 'purchase_count' => $new_total ] ) ) {
+			$this->purchase_count = $new_total;
+		}
+
+		/**
+		 * Fires after increasing the donor's donation count.
+		 *
+		 * @since 1.0
+		 *
+		 * @param int $purchase_count Donor donation count.
+		 * @param int $count          The number increased by.
+		 * @param int $donor_id       Donor id.
+		 */
+		do_action( 'give_donor_post_increase_donation_count', $this->purchase_count, $count, $this->id );
+
+		return $this->purchase_count;
 	}
 
 	/**
@@ -670,50 +836,49 @@ class Give_Donor {
 	}
 
 	/**
-	 * Increase the donation count of a donor.
+	 * Decrease a donor's lifetime value.
 	 *
 	 * @since  1.0
 	 * @access public
 	 *
-	 * @param  int $count The number to increase by.
+	 * @param  float $value The value to decrease by.
 	 *
-	 * @return int        The donation count.
+	 * @return mixed        If successful, the new value, otherwise false.
 	 */
-	public function increase_purchase_count( $count = 1 ) {
+	public function decrease_value( $value = 0.00 ) {
 
-		// Make sure it's numeric and not negative.
-		if ( ! is_numeric( $count ) || $count != absint( $count ) ) {
-			return false;
-		}
+		$new_value = floatval( $this->purchase_value ) - $value;
 
-		$new_total = (int) $this->purchase_count + (int) $count;
-
-		/**
-		 * Fires before increasing the donor's donation count.
-		 *
-		 * @since 1.0
-		 *
-		 * @param int $count    The number to increase by.
-		 * @param int $donor_id Donor id.
-		 */
-		do_action( 'give_donor_pre_increase_donation_count', $count, $this->id );
-
-		if ( $this->update( [ 'purchase_count' => $new_total ] ) ) {
-			$this->purchase_count = $new_total;
+		if ( $new_value < 0 ) {
+			$new_value = 0.00;
 		}
 
 		/**
-		 * Fires after increasing the donor's donation count.
+		 * Fires before decreasing donor lifetime value.
 		 *
 		 * @since 1.0
 		 *
-		 * @param int $purchase_count Donor donation count.
-		 * @param int $count          The number increased by.
-		 * @param int $donor_id       Donor id.
+		 * @param float $value    The value to decrease by.
+		 * @param int   $donor_id Donor id.
 		 */
-		do_action( 'give_donor_post_increase_donation_count', $this->purchase_count, $count, $this->id );
+		do_action( 'give_donor_pre_decrease_value', $value, $this->id );
 
-		return $this->purchase_count;
+		if ( $this->update( [ 'purchase_value' => $new_value ] ) ) {
+			$this->purchase_value = $new_value;
+		}
+
+		/**
+		 * Fires after decreasing donor lifetime value.
+		 *
+		 * @since 1.0
+		 *
+		 * @param float $purchase_value Donor lifetime value.
+		 * @param float $value          The value decreased by.
+		 * @param int   $donor_id       Donor id.
+		 */
+		do_action( 'give_donor_post_decrease_value', $this->purchase_value, $value, $this->id );
+
+		return $this->purchase_value;
 	}
 
 	/**
@@ -768,94 +933,6 @@ class Give_Donor {
 	}
 
 	/**
-	 * Increase the donor's lifetime value.
-	 *
-	 * @since  1.0
-	 * @access public
-	 *
-	 * @param  float $value The value to increase by.
-	 *
-	 * @return mixed        If successful, the new value, otherwise false.
-	 */
-	public function increase_value( $value = 0.00 ) {
-
-		$new_value = floatval( $this->purchase_value ) + $value;
-
-		/**
-		 * Fires before increasing donor lifetime value.
-		 *
-		 * @since 1.0
-		 *
-		 * @param float $value    The value to increase by.
-		 * @param int   $donor_id Customer id.
-		 */
-		do_action( 'give_donor_pre_increase_value', $value, $this->id );
-
-		if ( $this->update( [ 'purchase_value' => $new_value ] ) ) {
-			$this->purchase_value = $new_value;
-		}
-
-		/**
-		 * Fires after increasing donor lifetime value.
-		 *
-		 * @since 1.0
-		 *
-		 * @param float $purchase_value Donor's lifetime value.
-		 * @param float $value          The value increased by.
-		 * @param int   $donor_id       Donor id.
-		 */
-		do_action( 'give_donor_post_increase_value', $this->purchase_value, $value, $this->id );
-
-		return $this->purchase_value;
-	}
-
-	/**
-	 * Decrease a donor's lifetime value.
-	 *
-	 * @since  1.0
-	 * @access public
-	 *
-	 * @param  float $value The value to decrease by.
-	 *
-	 * @return mixed        If successful, the new value, otherwise false.
-	 */
-	public function decrease_value( $value = 0.00 ) {
-
-		$new_value = floatval( $this->purchase_value ) - $value;
-
-		if ( $new_value < 0 ) {
-			$new_value = 0.00;
-		}
-
-		/**
-		 * Fires before decreasing donor lifetime value.
-		 *
-		 * @since 1.0
-		 *
-		 * @param float $value    The value to decrease by.
-		 * @param int   $donor_id Donor id.
-		 */
-		do_action( 'give_donor_pre_decrease_value', $value, $this->id );
-
-		if ( $this->update( [ 'purchase_value' => $new_value ] ) ) {
-			$this->purchase_value = $new_value;
-		}
-
-		/**
-		 * Fires after decreasing donor lifetime value.
-		 *
-		 * @since 1.0
-		 *
-		 * @param float $purchase_value Donor lifetime value.
-		 * @param float $value          The value decreased by.
-		 * @param int   $donor_id       Donor id.
-		 */
-		do_action( 'give_donor_post_decrease_value', $this->purchase_value, $value, $this->id );
-
-		return $this->purchase_value;
-	}
-
-	/**
 	 * Decrease/Increase a donor's lifetime value.
 	 *
 	 * This function will update donation stat on basis of current amount and new amount donation difference.
@@ -895,31 +972,6 @@ class Give_Donor {
 	}
 
 	/**
-	 * Get the parsed notes for a donor as an array.
-	 *
-	 * @since  1.0
-	 * @access public
-	 *
-	 * @param  int $length The number of notes to get.
-	 * @param  int $paged  What note to start at.
-	 *
-	 * @return array       The notes requested.
-	 */
-	public function get_notes( $length = 20, $paged = 1 ) {
-
-		$length = is_numeric( $length ) ? $length : 20;
-		$offset = is_numeric( $paged ) && $paged != 1 ? ( ( absint( $paged ) - 1 ) * $length ) : 0;
-
-		$all_notes   = $this->get_raw_notes();
-		$notes_array = array_reverse( array_filter( explode( "\n\n", $all_notes ) ) );
-
-		$desired_notes = array_slice( $notes_array, $offset, $length );
-
-		return $desired_notes;
-
-	}
-
-	/**
 	 * Get the total number of notes we have after parsing.
 	 *
 	 * @since  1.0
@@ -933,6 +985,35 @@ class Give_Donor {
 		$notes_array = array_reverse( array_filter( explode( "\n\n", $all_notes ) ) );
 
 		return count( $notes_array );
+
+	}
+
+	/**
+	 * Get the notes column for the donor
+	 *
+	 * @since  1.0
+	 * @access private
+	 *
+	 * @return string The Notes for the donor, non-parsed.
+	 */
+	private function get_raw_notes() {
+		$all_notes = '';
+		$comments  = Give()->comment->db->get_results_by( [ 'comment_parent' => $this->id ] );
+
+		// Generate notes output as we are doing before 2.3.0.
+		if ( ! empty( $comments ) ) {
+			/* @var stdClass $comment */
+			foreach ( $comments  as $comment ) {
+				$all_notes .= date_i18n( 'F j, Y H:i:s', strtotime( $comment->comment_date ) ) . " - {$comment->comment_content}\n\n";
+			}
+		}
+
+		// Backward compatibility.
+		if ( ! give_has_upgrade_completed( 'v230_move_donor_note' ) ) {
+			$all_notes = $this->db->get_column( 'notes', $this->id );
+		}
+
+		return $all_notes;
 
 	}
 
@@ -1031,158 +1112,28 @@ class Give_Donor {
 	}
 
 	/**
-	 * Get the notes column for the donor
+	 * Get the parsed notes for a donor as an array.
 	 *
 	 * @since  1.0
-	 * @access private
-	 *
-	 * @return string The Notes for the donor, non-parsed.
-	 */
-	private function get_raw_notes() {
-		$all_notes = '';
-		$comments  = Give()->comment->db->get_results_by( [ 'comment_parent' => $this->id ] );
-
-		// Generate notes output as we are doing before 2.3.0.
-		if ( ! empty( $comments ) ) {
-			/* @var stdClass $comment */
-			foreach ( $comments  as $comment ) {
-				$all_notes .= date_i18n( 'F j, Y H:i:s', strtotime( $comment->comment_date ) ) . " - {$comment->comment_content}\n\n";
-			}
-		}
-
-		// Backward compatibility.
-		if ( ! give_has_upgrade_completed( 'v230_move_donor_note' ) ) {
-			$all_notes = $this->db->get_column( 'notes', $this->id );
-		}
-
-		return $all_notes;
-
-	}
-
-	/**
-	 * Retrieve a meta field for a donor.
-	 *
-	 * @since  1.6
 	 * @access public
 	 *
-	 * @param  string $meta_key The meta key to retrieve. Default is empty.
-	 * @param  bool   $single   Whether to return a single value. Default is true.
+	 * @param  int $length The number of notes to get.
+	 * @param  int $paged  What note to start at.
 	 *
-	 * @return mixed            Will be an array if $single is false. Will be value of meta data field if $single is
-	 *                          true.
+	 * @return array       The notes requested.
 	 */
-	public function get_meta( $meta_key = '', $single = true ) {
-		return Give()->donor_meta->get_meta( $this->id, $meta_key, $single );
-	}
+	public function get_notes( $length = 20, $paged = 1 ) {
 
-	/**
-	 * Add a meta data field to a donor.
-	 *
-	 * @since  1.6
-	 * @access public
-	 *
-	 * @param  string $meta_key   Metadata name. Default is empty.
-	 * @param  mixed  $meta_value Metadata value.
-	 * @param  bool   $unique     Optional. Whether the same key should not be added. Default is false.
-	 *
-	 * @return bool               False for failure. True for success.
-	 */
-	public function add_meta( $meta_key, $meta_value, $unique = false ) {
-		return Give()->donor_meta->add_meta( $this->id, $meta_key, $meta_value, $unique );
-	}
+		$length = is_numeric( $length ) ? $length : 20;
+		$offset = is_numeric( $paged ) && $paged != 1 ? ( ( absint( $paged ) - 1 ) * $length ) : 0;
 
-	/**
-	 * Update a meta field based on donor ID.
-	 *
-	 * @since  1.6
-	 * @access public
-	 *
-	 * @param  string $meta_key   Metadata key. Default is empty.
-	 * @param  mixed  $meta_value Metadata value.
-	 * @param  mixed  $prev_value Optional. Previous value to check before removing. Default is empty.
-	 *
-	 * @return bool               False on failure, true if success.
-	 */
-	public function update_meta( $meta_key, $meta_value, $prev_value = '' ) {
-		return Give()->donor_meta->update_meta( $this->id, $meta_key, $meta_value, $prev_value );
-	}
+		$all_notes   = $this->get_raw_notes();
+		$notes_array = array_reverse( array_filter( explode( "\n\n", $all_notes ) ) );
 
-	/**
-	 * Remove metadata matching criteria from a donor.
-	 *
-	 * @since  1.6
-	 * @access public
-	 *
-	 * @param  string $meta_key   Metadata name. Default is empty.
-	 * @param  mixed  $meta_value Optional. Metadata value. Default is empty.
-	 *
-	 * @return bool               False for failure. True for success.
-	 */
-	public function delete_meta( $meta_key = '', $meta_value = '' ) {
-		return Give()->donor_meta->delete_meta( $this->id, $meta_key, $meta_value );
-	}
+		$desired_notes = array_slice( $notes_array, $offset, $length );
 
-	/**
-	 * Sanitize the data for update/create
-	 *
-	 * @since  1.0
-	 * @access private
-	 *
-	 * @param  array $data The data to sanitize.
-	 *
-	 * @return array       The sanitized data, based off column defaults.
-	 */
-	private function sanitize_columns( $data ) {
+		return $desired_notes;
 
-		$columns        = $this->db->get_columns();
-		$default_values = $this->db->get_column_defaults();
-
-		foreach ( $columns as $key => $type ) {
-
-			// Only sanitize data that we were provided
-			if ( ! array_key_exists( $key, $data ) ) {
-				continue;
-			}
-
-			switch ( $type ) {
-
-				case '%s':
-					if ( 'email' == $key ) {
-						$data[ $key ] = sanitize_email( $data[ $key ] );
-					} elseif ( 'notes' == $key ) {
-						$data[ $key ] = strip_tags( $data[ $key ] );
-					} else {
-						$data[ $key ] = sanitize_text_field( $data[ $key ] );
-					}
-					break;
-
-				case '%d':
-					if ( ! is_numeric( $data[ $key ] ) || (int) $data[ $key ] !== absint( $data[ $key ] ) ) {
-						$data[ $key ] = $default_values[ $key ];
-					} else {
-						$data[ $key ] = absint( $data[ $key ] );
-					}
-					break;
-
-				case '%f':
-					// Convert what was given to a float
-					$value = floatval( $data[ $key ] );
-
-					if ( ! is_float( $value ) ) {
-						$data[ $key ] = $default_values[ $key ];
-					} else {
-						$data[ $key ] = $value;
-					}
-					break;
-
-				default:
-					$data[ $key ] = sanitize_text_field( $data[ $key ] );
-					break;
-
-			}
-		}
-
-		return $data;
 	}
 
 	/**
@@ -1229,28 +1180,19 @@ class Give_Donor {
 	}
 
 	/**
-	 * Remove an email from the donor.
+	 * Add a meta data field to a donor.
 	 *
-	 * @since  1.7
+	 * @since  1.6
 	 * @access public
 	 *
-	 * @param  string $email The email address to remove from the donor.
+	 * @param  string $meta_key   Metadata name. Default is empty.
+	 * @param  mixed  $meta_value Metadata value.
+	 * @param  bool   $unique     Optional. Whether the same key should not be added. Default is false.
 	 *
-	 * @return bool          If the email was removed successfully.
+	 * @return bool               False for failure. True for success.
 	 */
-	public function remove_email( $email = '' ) {
-
-		if ( ! is_email( $email ) ) {
-			return false;
-		}
-
-		do_action( 'give_donor_pre_remove_email', $email, $this->id, $this );
-
-		$ret = (bool) $this->delete_meta( 'additional_email', $email );
-
-		do_action( 'give_donor_post_remove_email', $email, $this->id, $this );
-
-		return $ret;
+	public function add_meta( $meta_key, $meta_value, $unique = false ) {
+		return Give()->donor_meta->add_meta( $this->id, $meta_key, $meta_value, $unique );
 	}
 
 	/**
@@ -1302,130 +1244,43 @@ class Give_Donor {
 	}
 
 	/**
-	 * Check if address valid or not.
+	 * Remove an email from the donor.
 	 *
-	 * @since  2.0
-	 * @access private
+	 * @since  1.7
+	 * @access public
 	 *
-	 * @param $address
+	 * @param  string $email The email address to remove from the donor.
 	 *
-	 * @return bool
+	 * @return bool          If the email was removed successfully.
 	 */
-	private function is_valid_address( $address ) {
-		$is_valid_address = true;
+	public function remove_email( $email = '' ) {
 
-		// Address ready to process even if only one value set.
-		foreach ( $address as $address_type => $value ) {
-			// @todo: Handle state field validation on basis of country.
-			if ( in_array( $address_type, [ 'line2', 'state' ] ) ) {
-				continue;
-			}
-
-			if ( empty( $value ) ) {
-				$is_valid_address = false;
-				break;
-			}
+		if ( ! is_email( $email ) ) {
+			return false;
 		}
 
-		return $is_valid_address;
+		do_action( 'give_donor_pre_remove_email', $email, $this->id, $this );
+
+		$ret = (bool) $this->delete_meta( 'additional_email', $email );
+
+		do_action( 'give_donor_post_remove_email', $email, $this->id, $this );
+
+		return $ret;
 	}
 
 	/**
-	 * Add donor address
+	 * Remove metadata matching criteria from a donor.
 	 *
-	 * @since  2.0
+	 * @since  1.6
 	 * @access public
 	 *
-	 * @param string $address_type
-	 * @param array  $address {
+	 * @param  string $meta_key   Metadata name. Default is empty.
+	 * @param  mixed  $meta_value Optional. Metadata value. Default is empty.
 	 *
-	 * @type string  $address2
-	 * @type string city
-	 * @type string zip
-	 * @type string state
-	 * @type string country
-	 * }
-	 *
-	 * @return bool
+	 * @return bool               False for failure. True for success.
 	 */
-	public function add_address( $address_type, $address ) {
-		// Bailout.
-		if ( empty( $address_type ) || ! $this->is_valid_address( $address ) || ! $this->id ) {
-			return false;
-		}
-
-		// Check if multiple address exist or not and set params.
-		$multi_address_id = null;
-		if ( $is_multi_address = ( false !== strpos( $address_type, '[]' ) ) ) {
-			$address_type = $is_multi_address ? str_replace( '[]', '', $address_type ) : $address_type;
-		} elseif ( $is_multi_address = ( false !== strpos( $address_type, '_' ) ) ) {
-			$exploded_address_type = explode( '_', $address_type );
-			$multi_address_id      = $is_multi_address ? array_pop( $exploded_address_type ) : $address_type;
-
-			$address_type = $is_multi_address ? array_shift( $exploded_address_type ) : $address_type;
-		}
-
-		// Bailout: do not save duplicate orders
-		if ( $this->does_address_exist( $address_type, $address ) && $multi_address_id === null ) {
-			return false;
-		}
-
-		// Set default address.
-		$address = wp_parse_args(
-			$address,
-			[
-				'line1'   => '',
-				'line2'   => '',
-				'city'    => '',
-				'state'   => '',
-				'country' => '',
-				'zip'     => '',
-			]
-		);
-
-		// Set meta key prefix.
-		global $wpdb;
-		$meta_key_prefix = "_give_donor_address_{$address_type}_{address_name}";
-		$meta_type       = Give()->donor_meta->meta_type;
-
-		if ( $is_multi_address ) {
-			if ( is_null( $multi_address_id ) ) {
-				// Get latest address key to set multi address id.
-				$multi_address_id = $wpdb->get_var(
-					$wpdb->prepare(
-						"
-						SELECT meta_key FROM {$wpdb->donormeta}
-						WHERE meta_key
-						LIKE '%s'
-						AND {$meta_type}_id=%d
-						ORDER BY meta_id DESC
-						LIMIT 1
-						",
-						"%_give_donor_address_{$address_type}_line1%",
-						$this->id
-					)
-				);
-
-				if ( ! empty( $multi_address_id ) ) {
-					$multi_address_id = absint( substr( strrchr( $multi_address_id, '_' ), 1 ) );
-					$multi_address_id ++;
-				} else {
-					$multi_address_id = 0;
-				}
-			}
-
-			$meta_key_prefix = "_give_donor_address_{$address_type}_{address_name}_{$multi_address_id}";
-		}
-
-		// Save donor address.
-		foreach ( $address as $type => $value ) {
-			$meta_key = str_replace( '{address_name}', $type, $meta_key_prefix );
-			Give()->donor_meta->update_meta( $this->id, $meta_key, $value );
-		}
-
-		$this->setup_address();
-
-		return true;
+	public function delete_meta( $meta_key = '', $meta_value = '' ) {
+		return Give()->donor_meta->delete_meta( $this->id, $meta_key, $meta_value );
 	}
 
 	/**
@@ -1539,6 +1394,135 @@ class Give_Donor {
 		return true;
 	}
 
+	/**
+	 * Add donor address
+	 *
+	 * @since  2.0
+	 * @access public
+	 *
+	 * @param string $address_type
+	 * @param array  $address {
+	 *
+	 * @type string  $address2
+	 * @type string city
+	 * @type string zip
+	 * @type string state
+	 * @type string country
+	 * }
+	 *
+	 * @return bool
+	 */
+	public function add_address( $address_type, $address ) {
+		// Bailout.
+		if ( empty( $address_type ) || ! $this->is_valid_address( $address ) || ! $this->id ) {
+			return false;
+		}
+
+		// Check if multiple address exist or not and set params.
+		$multi_address_id = null;
+		if ( $is_multi_address = ( false !== strpos( $address_type, '[]' ) ) ) {
+			$address_type = $is_multi_address ? str_replace( '[]', '', $address_type ) : $address_type;
+		} elseif ( $is_multi_address = ( false !== strpos( $address_type, '_' ) ) ) {
+			$exploded_address_type = explode( '_', $address_type );
+			$multi_address_id      = $is_multi_address ? array_pop( $exploded_address_type ) : $address_type;
+
+			$address_type = $is_multi_address ? array_shift( $exploded_address_type ) : $address_type;
+		}
+
+		// Bailout: do not save duplicate orders
+		if ( $this->does_address_exist( $address_type, $address ) && $multi_address_id === null ) {
+			return false;
+		}
+
+		// Set default address.
+		$address = wp_parse_args(
+			$address,
+			[
+				'line1'   => '',
+				'line2'   => '',
+				'city'    => '',
+				'state'   => '',
+				'country' => '',
+				'zip'     => '',
+                'persoana' => '',
+                'cui'  => '',
+                'j' => '',
+			]
+		);
+
+		// Set meta key prefix.
+		global $wpdb;
+		$meta_key_prefix = "_give_donor_address_{$address_type}_{address_name}";
+		$meta_type       = Give()->donor_meta->meta_type;
+
+		if ( $is_multi_address ) {
+			if ( is_null( $multi_address_id ) ) {
+				// Get latest address key to set multi address id.
+				$multi_address_id = $wpdb->get_var(
+					$wpdb->prepare(
+						"
+						SELECT meta_key FROM {$wpdb->donormeta}
+						WHERE meta_key
+						LIKE '%s'
+						AND {$meta_type}_id=%d
+						ORDER BY meta_id DESC
+						LIMIT 1
+						",
+						"%_give_donor_address_{$address_type}_line1%",
+						$this->id
+					)
+				);
+
+				if ( ! empty( $multi_address_id ) ) {
+					$multi_address_id = absint( substr( strrchr( $multi_address_id, '_' ), 1 ) );
+					$multi_address_id ++;
+				} else {
+					$multi_address_id = 0;
+				}
+			}
+
+			$meta_key_prefix = "_give_donor_address_{$address_type}_{address_name}_{$multi_address_id}";
+		}
+
+		// Save donor address.
+		foreach ( $address as $type => $value ) {
+			$meta_key = str_replace( '{address_name}', $type, $meta_key_prefix );
+			Give()->donor_meta->update_meta( $this->id, $meta_key, $value );
+		}
+
+		$this->setup_address();
+
+		return true;
+	}
+
+	/**
+	 * Check if address valid or not.
+	 *
+	 * @since  2.0
+	 * @access private
+	 *
+	 * @param $address
+	 *
+	 * @return bool
+	 */
+	private function is_valid_address( $address ) {
+		$is_valid_address = true;
+
+		// Address ready to process even if only one value set.
+		foreach ( $address as $address_type => $value ) {
+			// @todo: Handle state field validation on basis of country.
+			if ( in_array( $address_type, [ 'line2', 'state' ] ) ) {
+				continue;
+			}
+
+			if ( empty( $value ) ) {
+				$is_valid_address = false;
+				break;
+			}
+		}
+
+		return $is_valid_address;
+	}
 
 	/**
 	 * Check if donor already has current address
@@ -1611,66 +1595,19 @@ class Give_Donor {
 	}
 
 	/**
-	 * Split donor name into first name and last name
+	 * Update a meta field based on donor ID.
 	 *
-	 * @param   int $id Donor ID
+	 * @since  1.6
+	 * @access public
 	 *
-	 * @since   2.0
-	 * @return  object
+	 * @param  string $meta_key   Metadata key. Default is empty.
+	 * @param  mixed  $meta_value Metadata value.
+	 * @param  mixed  $prev_value Optional. Previous value to check before removing. Default is empty.
+	 *
+	 * @return bool               False on failure, true if success.
 	 */
-	public function split_donor_name( $id ) {
-		$first_name = $last_name = '';
-		$donor      = new Give_Donor( $id );
-
-		$split_donor_name = explode( ' ', $donor->name, 2 );
-
-		// Check for existence of first name after split of donor name.
-		if ( is_array( $split_donor_name ) && ! empty( $split_donor_name[0] ) ) {
-			$first_name = $split_donor_name[0];
-		}
-
-		// Check for existence of last name after split of donor name.
-		if ( is_array( $split_donor_name ) && ! empty( $split_donor_name[1] ) ) {
-			$last_name = $split_donor_name[1];
-		}
-
-		return (object) [
-			'first_name' => $first_name,
-			'last_name'  => $last_name,
-		];
-	}
-
-	/**
-	 * Retrieves first name of donor with backward compatibility
-	 *
-	 * @since   2.0
-	 * @return  string
-	 */
-	public function get_first_name() {
-		$first_name = $this->get_meta( '_give_donor_first_name' );
-		if ( ! $first_name ) {
-			$first_name = $this->split_donor_name( $this->id )->first_name;
-		}
-
-		return $first_name;
-	}
-
-	/**
-	 * Retrieves last name of donor with backward compatibility
-	 *
-	 * @since   2.0
-	 * @return  string
-	 */
-	public function get_last_name() {
-		$first_name = $this->get_meta( '_give_donor_first_name' );
-		$last_name  = $this->get_meta( '_give_donor_last_name' );
-
-		// This condition will prevent unnecessary splitting of donor name to fetch last name.
-		if ( ! $first_name && ! $last_name ) {
-			$last_name = $this->split_donor_name( $this->id )->last_name;
-		}
-
-		return ( $last_name ) ? $last_name : '';
+	public function update_meta( $meta_key, $meta_value, $prev_value = '' ) {
+		return Give()->donor_meta->update_meta( $this->id, $meta_key, $meta_value, $prev_value );
 	}
 
 	/**
@@ -1684,21 +1621,6 @@ class Give_Donor {
 		$company_name = $this->get_meta( '_give_donor_company' );
 
 		return $company_name;
-	}
-
-	/**
-	 * Retrieves last donation for the donor.
-	 *
-	 * @since   2.1
-	 *
-	 * @return  string $company_name Donor Company Name
-	 */
-	public function get_last_donation() {
-
-		$payments = array_unique( array_values( explode( ',', $this->payment_ids ) ) );
-
-		return end( $payments );
-
 	}
 
 	/**
@@ -1729,6 +1651,21 @@ class Give_Donor {
 	}
 
 	/**
+	 * Retrieves last donation for the donor.
+	 *
+	 * @since   2.1
+	 *
+	 * @return  string $company_name Donor Company Name
+	 */
+	public function get_last_donation() {
+
+		$payments = array_unique( array_values( explode( ',', $this->payment_ids ) ) );
+
+		return end( $payments );
+
+	}
+
+	/**
 	 * Retrieves a donor's initials (first name and last name).
 	 *
 	 * @since   2.1
@@ -1751,6 +1688,69 @@ class Give_Donor {
 			)
 		);
 
+	}
+
+	/**
+	 * Retrieves first name of donor with backward compatibility
+	 *
+	 * @since   2.0
+	 * @return  string
+	 */
+	public function get_first_name() {
+		$first_name = $this->get_meta( '_give_donor_first_name' );
+		if ( ! $first_name ) {
+			$first_name = $this->split_donor_name( $this->id )->first_name;
+		}
+
+		return $first_name;
+	}
+
+	/**
+	 * Split donor name into first name and last name
+	 *
+	 * @param   int $id Donor ID
+	 *
+	 * @since   2.0
+	 * @return  object
+	 */
+	public function split_donor_name( $id ) {
+		$first_name = $last_name = '';
+		$donor      = new Give_Donor( $id );
+
+		$split_donor_name = explode( ' ', $donor->name, 2 );
+
+		// Check for existence of first name after split of donor name.
+		if ( is_array( $split_donor_name ) && ! empty( $split_donor_name[0] ) ) {
+			$first_name = $split_donor_name[0];
+		}
+
+		// Check for existence of last name after split of donor name.
+		if ( is_array( $split_donor_name ) && ! empty( $split_donor_name[1] ) ) {
+			$last_name = $split_donor_name[1];
+		}
+
+		return (object) [
+			'first_name' => $first_name,
+			'last_name'  => $last_name,
+		];
+	}
+
+	/**
+	 * Retrieves last name of donor with backward compatibility
+	 *
+	 * @since   2.0
+	 * @return  string
+	 */
+	public function get_last_name() {
+		$first_name = $this->get_meta( '_give_donor_first_name' );
+		$last_name  = $this->get_meta( '_give_donor_last_name' );
+
+		// This condition will prevent unnecessary splitting of donor name to fetch last name.
+		if ( ! $first_name && ! $last_name ) {
+			$last_name = $this->split_donor_name( $this->id )->last_name;
+		}
+
+		return ( $last_name ) ? $last_name : '';
 	}
 
 }

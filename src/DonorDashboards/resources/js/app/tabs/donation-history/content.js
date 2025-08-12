@@ -50,7 +50,7 @@ const Content = () => {
             </Fragment>
         ) : (
             <Fragment>
-                <Heading>
+               {/* <Heading>
                     {__('Donation Receipt', 'give')} #{getDonationById(id).payment.serialCode}
                 </Heading>
                 <DonationReceipt donation={getDonationById(id)} />
@@ -63,7 +63,7 @@ const Content = () => {
                             {__('Download Receipt', 'give')}
                         </Button>
                     )}
-                </div>
+                </div>*/}
             </Fragment>
         );
     }

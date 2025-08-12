@@ -26,13 +26,14 @@ const AvatarControl = ({url, file, onChange}) => {
         }
     }, [file]);
 
+
     return (
         <div className="give-donor-dashboard-avatar-control">
             <label className="give-donor-dashboard-avatar-control__label">{__('Avatar', 'give')}</label>
             <div className="give-donor-dashboard-avatar-control__input" {...getRootProps()}>
                 <input {...getInputProps()} />
                 <div className="give-donor-dashboard-avatar-control__preview">
-                    <img src={previewSrc}/>
+                    <img src={previewSrc ? previewSrc : 'https://preiainitiativa.ro/wp-content/uploads/2025/05/logo.svg'}/>
                 </div>
                 <div
                     className={`give-donor-dashboard-avatar-control__dropzone${
