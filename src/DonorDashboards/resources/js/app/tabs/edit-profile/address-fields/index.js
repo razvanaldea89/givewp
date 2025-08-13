@@ -1,15 +1,15 @@
-import {Fragment, useState, useEffect} from 'react';
-import {useSelector, useDispatch} from 'react-redux';
-import {setStates} from '../../../store/actions';
-import {__} from '@wordpress/i18n';
+import { Fragment, useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { setStates } from '../../../store/actions';
+import { __ } from '@wordpress/i18n';
 
 import SelectControl from '../../../components/select-control';
 import TextControl from '../../../components/text-control';
 import FieldRow from '../../../components/field-row';
 
-import {fetchStatesWithAPI} from '../utils';
+import { fetchStatesWithAPI } from '../utils';
 
-const AddressFields = ({address, onChange}) => {
+const AddressFields = ({ address, onChange }) => {
     useEffect(() => {
         setCountry(address.country);
         setLine1(address.line1);
@@ -35,6 +35,7 @@ const AddressFields = ({address, onChange}) => {
     const [persoana, setPersoana] = useState(address.persoana);
     const [cui, setCui] = useState(address.cui);
     const [j, setJ] = useState(address.j);
+    const [displayFields, setDisplayFields] = useState(false);
 
     const updateStates = async (countryCode) => {
         if (countryCode) {
@@ -68,6 +69,18 @@ const AddressFields = ({address, onChange}) => {
         { value: 'persoana_juridica', label: __('Persoană Juridică', 'give') },
     ];
 
+    const persoanaActions = (value) => {
+        setPersoana(value);
+        console.log(value);
+        if (value === 'persoana_fizica') {
+            // Hide CUI and J fields for Persoană Fizică
+            setDisplayFields(false);
+        } else if (value === 'persoana_juridica') {
+            // Show CUI and J fields for Persoană Juridică
+            setDisplayFields(true);
+        }
+    };
+
     return (
         <Fragment>
             <SelectControl
@@ -77,18 +90,20 @@ const AddressFields = ({address, onChange}) => {
                 options={countryOptions}
                 width={null}
             />
-            <TextControl label={__('Address 1', 'give')} value={line1} onChange={(value) => setLine1(value)} />
-            <TextControl label={__('Address 2', 'give')} value={line2} onChange={(value) => setLine2(value)} />
-            <TextControl label={__('City', 'give')} value={city} onChange={(value) => setCity(value)} />
+            <TextControl label={__('Address 1', 'give')} value={line1} onChange={(value) => setLine1(value)}/>
+            <TextControl label={__('Address 2', 'give')} value={line2} onChange={(value) => setLine2(value)}/>
+            <TextControl label={__('City', 'give')} value={city} onChange={(value) => setCity(value)}/>
             <SelectControl
                 label={__('Tip persoana', 'give')}
                 value={persoana}
-                onChange={(value) => setPersoana(value)}
+                onChange={persoanaActions}
                 options={personaOptions}
                 width={null}
             />
-            <TextControl label={__('CUI', 'give')} value={cui} onChange={(value) => setCui(value)} />
-            <TextControl label={__('J', 'give')} value={j} onChange={(value) => setJ(value)} />
+            {displayFields && (
+                <TextControl label={__('CUI', 'give')} value={cui} onChange={(value) => setCui(value)}/>)}
+            {displayFields && (
+                <TextControl label={__('Număr de înregistrare', 'give')} value={j} onChange={(value) => setJ(value)}/>)}
             <FieldRow>
                 <SelectControl
                     label={__('State', 'give')}
@@ -96,7 +111,7 @@ const AddressFields = ({address, onChange}) => {
                     onChange={(value) => setState(value)}
                     options={stateOptions}
                 />
-                <TextControl label={__('Zip', 'give')} value={zip} onChange={(value) => setZip(value)} />
+                <TextControl label={__('Zip', 'give')} value={zip} onChange={(value) => setZip(value)}/>
             </FieldRow>
         </Fragment>
     );

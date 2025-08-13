@@ -1,5 +1,5 @@
-import {useState, useEffect} from 'react';
-import {useSelector} from 'react-redux';
+import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 
 import './style.scss';
 import '../subscription-manager/style.scss';
@@ -23,7 +23,7 @@ const DashboardContent = () => {
         return tabsArray.reduce((content, tab, index) => {
             if (tab[1].dashboardContent) {
                 const Content = tab[1].dashboardContent;
-                content.push(<Content key={index} />);
+                content.push(<Content key={index}/>);
             }
             return content;
         }, []);

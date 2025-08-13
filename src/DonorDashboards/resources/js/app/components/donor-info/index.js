@@ -24,6 +24,7 @@ const DonorInfo = () => {
                 </div>
             </div>
             <div className="give-donor-dashboard-donor-info__details">
+                <p>Bine ai venit,</p>
                 {name && <div className="give-donor-dashboard-donor-info__name">{name}</div>}
                 {address && (
                     <div className="give-donor-dashboard-donor-info__detail">
@@ -50,7 +51,6 @@ const DonorInfo = () => {
                 )}
             </div>
             <div className="give-donor-dashboard-donor-info__badges"></div>
-            <div><p>Bine ai venit, <span className="give-donor-dashboard-donor-info__greeting">{name ? name : __(' donator', 'give')}</span>!</p></div>
         </div>
     );
 };

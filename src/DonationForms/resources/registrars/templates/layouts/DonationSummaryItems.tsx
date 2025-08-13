@@ -41,13 +41,6 @@ export default function DonationSummaryItems({items, total}) {
             {items.map(({id, label, value, description}, index) => {
                 return <LineItem id={id} label={label} value={value} description={description} key={index} />;
             })}
-
-            <LineItem
-                id={'total'}
-                label={__('Donation Total', 'give')}
-                value={total}
-                className="givewp-elements-donationSummary__list__item--total"
-            />
         </ul>
     );
 }

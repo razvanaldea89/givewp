@@ -1,10 +1,10 @@
 // Internal dependencies
-import {registerAnnualReceiptsTab} from './annual-receipts';
-import {registerDashboardTab} from './dashboard';
-import {registerDonationHistoryTab} from './donation-history';
-import {registerEditProfileTab} from './edit-profile';
-import {registerRecurringDonationsTab} from './recurring-donations';
-import {getWindowData} from '../utils';
+import { registerAnnualReceiptsTab } from './annual-receipts';
+import { registerDashboardTab } from './dashboard';
+import { registerDonationHistoryTab } from './donation-history';
+import { registerEditProfileTab } from './edit-profile';
+import { registerRecurringDonationsTab } from './recurring-donations';
+import { getWindowData, isDonor } from '../utils';
 
 export const registerDefaultTabs = () => {
 
@@ -12,7 +12,9 @@ export const registerDefaultTabs = () => {
     registerDashboardTab();
     // Make sure that Edit Profile tab is registered first
     registerEditProfileTab();
-    const tabRegistrationMap = {
+    let tabRegistrationMap = {};
+
+    tabRegistrationMap = {
         'donation-history': registerDonationHistoryTab,
         'annual-receipts': registerAnnualReceiptsTab,
         'recurring-donations': registerRecurringDonationsTab,

@@ -3,7 +3,7 @@ import { toUniqueId } from '../../utils';
 
 import './style.scss';
 
-const TextControl = ({ label = null, value = '', onChange = null, icon = null, type = 'text', placeholder = '' }) => {
+const TextControl = ({ label = null, value = '', onChange = null, icon = null, type = 'text', placeholder = ''}) => {
     const id = toUniqueId(label);
 
     return (
