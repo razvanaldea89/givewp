@@ -199,7 +199,6 @@ const AuthModal = () => {
                                             )}
                                         </div>
                                     </form>
-                                    <a href="/inregistrare" className="">Inregistrează-te</a>
                                 </>
                             )}
                             {passwordResetSent && (
