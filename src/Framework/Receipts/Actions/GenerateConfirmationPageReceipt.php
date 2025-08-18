@@ -131,19 +131,19 @@ class GenerateConfirmationPageReceipt
         }
 
         $receipt->donationDetails->addDetails([
-                new ReceiptDetail(
-                    __('Payment Status', 'give'),
-                    $receipt->donation->status->label()
-                ),
-                new ReceiptDetail(
-                    __('Payment Method', 'give'),
-                    $paymentMethodLabel
-                ),
-                new ReceiptDetail(
-                    __('Donation Amount', 'give'),
-                    ['amount' => apply_filters('givewp_generate_confirmation_page_receipt_detail_donation_amount', $receipt->donation->intendedAmount()->formatToDecimal(), $receipt)]
-                ),
-            ]
+                                                  new ReceiptDetail(
+                                                      __('Payment Status', 'give'),
+                                                      $receipt->donation->status->label()
+                                                  ),
+                                                  new ReceiptDetail(
+                                                      __('Payment Method', 'give'),
+                                                      $paymentMethodLabel
+                                                  ),
+                                                  new ReceiptDetail(
+                                                      __('Donation Amount', 'give'),
+                                                      ['amount' => apply_filters('givewp_generate_confirmation_page_receipt_detail_donation_amount', $receipt->donation->intendedAmount()->formatToDecimal(), $receipt)]
+                                                  ),
+                                              ]
         );
 
         if ($receipt->donation->feeAmountRecovered) {
@@ -251,40 +251,56 @@ class GenerateConfirmationPageReceipt
     {
         if ($receipt->donation->subscriptionId) {
             $subscription = $receipt->donation->subscription;
+
+            // Check if subscription and required properties exist before proceeding
+            if (!$subscription || !$subscription->period || !$subscription->amount || !$subscription->status) {
+                return;
+            }
+
             $subscriptionAmountLabel = sprintf(
                 $subscription->period->label($subscription->frequency),
                 $subscription->frequency
             );
 
-            $receipt->subscriptionDetails->addDetails([
+            $receiptDetails = array(
                 new ReceiptDetail(
                     __('Subscription', 'give'),
-                    [
+                    array(
                         'amount' =>
                             sprintf(
                                 '%s / %s',
                                 $subscription->amount->formatToDecimal(),
                                 $subscriptionAmountLabel
                             )
-                    ]
+                    )
                 ),
                 new ReceiptDetail(
                     __('Subscription Status', 'give'),
                     $subscription->status->label()
                 ),
-                new ReceiptDetail(
+            );
+
+            // Only add renewal date if it exists
+            if ($subscription->renewsAt) {
+                $receiptDetails[] = new ReceiptDetail(
                     __('Renewal Date', 'give'),
                     $subscription->renewsAt->format('F j, Y')
-                ),
-                new ReceiptDetail(
+                );
+            }
+
+            // Only add progress if donations data is available
+            if (isset($subscription->donations)) {
+                $receiptDetails[] = new ReceiptDetail(
                     __('Progress', 'give'),
                     sprintf(
                         '%s / %s',
                         count($subscription->donations),
                         $subscription->installments > 0 ? $subscription->installments : __('Ongoing', 'give')
                     )
-                ),
-            ]);
+                );
+            }
+
+            $receipt->subscriptionDetails->addDetails($receiptDetails);
         }
     }
 

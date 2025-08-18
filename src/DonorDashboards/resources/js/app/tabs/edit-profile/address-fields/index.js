@@ -91,7 +91,6 @@ const AddressFields = ({ address, onChange }) => {
                 width={null}
             />
             <TextControl label={__('Address 1', 'give')} value={line1} onChange={(value) => setLine1(value)}/>
-            <TextControl label={__('Address 2', 'give')} value={line2} onChange={(value) => setLine2(value)}/>
             <TextControl label={__('City', 'give')} value={city} onChange={(value) => setCity(value)}/>
             <SelectControl
                 label={__('Tip persoana', 'give')}
